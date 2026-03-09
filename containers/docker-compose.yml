@@ -1,0 +1,91 @@
+networks:
+  helixscale-net:
+    driver: bridge # Single Docker bridge
+
+services:
+  # --- Slurm Cluster Simulation ---
+  slurm-controller:
+    image: giovtorres/slurm-docker-cluster:latest
+    container_name: helixscale-controller
+    hostname: controller
+    networks:
+      - helixscale-net
+    ports:
+      - "6820:6820" # Slurm REST API
+    volumes:
+      - ../scheduler/slurm/slurm.conf.j2:/etc/slurm/slurm.conf
+      - ../scheduler/slurm/gres.conf.j2:/etc/slurm/gres.conf # Added GRES config
+      - shared-workspace:/workspace
+
+  slurm-compute-1:
+    image: giovtorres/slurm-docker-cluster:latest
+    container_name: helixscale-compute-1
+    hostname: compute-1
+    networks:
+      - helixscale-net
+    volumes:
+      - shared-workspace:/workspace
+    depends_on:
+      - slurm-controller
+
+  slurm-compute-2:
+    image: giovtorres/slurm-docker-cluster:latest
+    container_name: helixscale-compute-2
+    hostname: compute-2
+    networks:
+      - helixscale-net
+    volumes:
+      - shared-workspace:/workspace
+    depends_on:
+      - slurm-controller
+
+  # --- Observability Stack ---
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: helixscale-prometheus
+    networks:
+      - helixscale-net
+    ports:
+      - "9090:9090" # Prometheus port
+    volumes:
+      - ../monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+
+  loki:
+    image: grafana/loki:latest
+    container_name: helixscale-loki
+    networks:
+      - helixscale-net
+    ports:
+      - "3100:3100" # Added Loki for log aggregation
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: helixscale-grafana
+    networks:
+      - helixscale-net
+    ports:
+      - "3000:3000" # Grafana port
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ../monitoring/grafana/dashboards:/var/lib/grafana/dashboards # Added dashboard mounts
+    depends_on:
+      - prometheus
+      - loki
+
+  # --- Custom Exporters (T0 Mock) ---
+  metrics-exporter:
+    build:
+      context: ../
+      dockerfile: containers/Dockerfile.orchestrator # Repurposed to run exporters
+    container_name: helixscale-exporters
+    command: uv run python -m helixscale.monitoring.exporters # Runs custom Python exporter
+    networks:
+      - helixscale-net
+    volumes:
+      - ../src:/app/src
+    depends_on:
+      - slurm-controller
+
+volumes:
+  shared-workspace:

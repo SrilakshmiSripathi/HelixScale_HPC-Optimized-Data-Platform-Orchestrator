@@ -71,7 +71,7 @@ Every component runs at T0 first. If it doesn't work in Docker Compose, it doesn
 
 ## The BioNeMo Workload
 
-Real protein structure prediction using NVIDIA BioNeMo and Meta's ESM-2, processing **50 3D structures from the Protein Data Bank (PDB)**.
+Real Bronze level protein structure prediction using NVIDIA BioNeMo and Meta's ESM-2, processing **50 3D structures from the Protein Data Bank (PDB)**.
 
 ```
 PDB FASTA Input → Tokenization → ESMFold Inference → PDB Output + pLDDT Scores → Report

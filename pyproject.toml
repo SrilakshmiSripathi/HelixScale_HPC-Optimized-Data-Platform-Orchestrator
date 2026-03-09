@@ -1,0 +1,139 @@
+[project]
+name = "helixscale"
+version = "0.1.0"
+description = "BioNeMo HPC Orchestration Platform — GPU cluster provisioning, workload scheduling, and monitoring for computational biology"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "Srilakshmi Sripathi" }]
+readme = "README.md"
+
+dependencies = [
+    # --- CLI & Terminal UI ---
+    "typer>=0.12",              # CLI framework (cluster, jobs, infra, monitor, data subcommands)
+    "rich>=13.7",               # Pretty terminal output: tables, progress bars, TUI panels
+
+    # --- Data Validation & Settings ---
+    "pydantic>=2.7",            # Data models: JobSpec, JobStatus, QueueEntry, pipeline stages
+    "pydantic-settings>=2.3",   # Tier-aware config: HelixSettings(BaseSettings) with env_prefix="HELIX_"
+
+    # --- REST API ---
+    "fastapi>=0.111",           # API-first backend: /cluster, /jobs, /data, /monitor, /infra, /health
+    "uvicorn[standard]>=0.30",  # ASGI server for FastAPI
+
+    # --- HTTP Client ---
+    "httpx>=0.27",              # Async HTTP: CLI→API calls, RCSB PDB downloads, health checks
+
+    # --- Monitoring & Metrics ---
+    "prometheus-client>=0.20",  # Custom Slurm exporter: slurm_jobs_pending, slurm_job_wait_seconds
+
+    # --- Config & Templating ---
+    "pyyaml>=6.0",              # Pipeline YAML parsing (protein_folding.yaml), Ansible inventory
+    "jinja2>=3.1",              # Slurm config templates: slurm.conf.j2, gres.conf.j2, SBATCH scripts
+]
+
+[project.optional-dependencies]
+# BioNeMo CPU fallback — Meta's ESM-2 for lightweight protein embeddings on M-series Mac
+bio = [
+    "fair-esm>=2.0",           # ESM-2 model: FASTA→embeddings (CPU-only, skip full structure prediction)
+    "biopython>=1.84",         # FASTA/PDB parsing, sequence validation, UniProt integration
+]
+
+# Streamlit dashboard — pipeline viz, GPU heatmaps, protein 3D viewer
+dashboard = [
+    "streamlit>=1.35",         # Multi-page web app: pipeline DAG, job queue, cluster topology
+    "plotly>=5.22",            # GPU utilization heatmaps, job analytics charts
+    "py3Dmol>=2.0",            # 3D protein structure viewer with pLDDT confidence coloring
+    "graphviz>=0.20",          # Pipeline DAG visualization (topological stage ordering)
+]
+
+# Development tools — linting, testing, type checking
+dev = [
+    "pytest>=8.2",             # Unit + integration tests
+    "pytest-asyncio>=0.23",    # Async test support for FastAPI/httpx
+    "pytest-cov>=5.0",         # Coverage reporting
+    "ruff>=0.5",               # Linting + formatting (replaces flake8, isort, black)
+    "mypy>=1.10",              # Static type checking (strict mode for src/helixscale/)
+    "pre-commit>=3.7",         # Git hooks: ruff, check-yaml, terraform_fmt, shellcheck
+]
+
+# All extras combined — use: uv sync --all-extras
+all = [
+    "helixscale[bio]",
+    "helixscale[dashboard]",
+    "helixscale[dev]",
+]
+
+[project.scripts]
+helixscale = "helixscale.cli:app"
+helixscale-api = "helixscale.api:serve"
+
+[project.urls]
+Repository = "https://github.com/SrilakshmiSripathi/HelixScale-BioNemo-HPC-Orchestration-Platform"
+Documentation = "https://github.com/SrilakshmiSripathi/HelixScale-BioNemo-HPC-Orchestration-Platform/tree/main/docs"
+
+# ---------------------------------------------------------------------------
+# Tool Configuration
+# ---------------------------------------------------------------------------
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "I",    # isort (import sorting)
+    "N",    # pep8-naming
+    "UP",   # pyupgrade (modern Python syntax)
+    "B",    # flake8-bugbear (common bugs)
+    "SIM",  # flake8-simplify
+    "TCH",  # flake8-type-checking (move imports behind TYPE_CHECKING)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["helixscale"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "fair_esm.*",
+    "py3Dmol.*",
+    "graphviz.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "t0: T0 local tests (Docker Compose Slurm)",
+    "t1: T1 cloud tests (AWS/Azure GPU)",
+    "slow: long-running tests (full pipeline E2E)",
+]
+
+[tool.coverage.run]
+source = ["src/helixscale"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 60
+
+# ---------------------------------------------------------------------------
+# Build System
+# ---------------------------------------------------------------------------
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/helixscale"]

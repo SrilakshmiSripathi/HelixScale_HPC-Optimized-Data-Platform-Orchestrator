@@ -1,0 +1,54 @@
+# Makefile
+.PHONY: lint test t0-up t0-down t0-test infra-plan infra-apply configure validate clean orb-shell
+
+# --- OrbStack Machine Helper ---
+orb-shell:
+	@echo "Bootstrapping and entering OrbStack machine (helixscale-dev)..."
+	@orb list | grep -q helixscale-dev || orb create ubuntu helixscale-dev
+	@orb -m helixscale-dev bash -c "cd $$(pwd) && exec bash"
+
+
+uv:
+	@bash scripts/bootstrap_linux.sh
+
+setup-env:
+	@test -d .venv || (echo "Creating new environment..." && uv venv) && uv sync --all-extras
+
+# --- Core Platform Commands ---
+lint:
+	uv run ruff check --fix src/tests/
+	uv run ruff format --check src/tests/
+	uv run mypy src/helixscale/
+
+test:
+	uv run pytest tests/unit -v
+
+t0-up:
+	docker compose -f containers/docker-compose.yml up -d
+	@echo "Waiting for Slurm controller..."
+	@sleep 10
+	@docker exec helixscale-controller sinfo || echo "Slurm not ready yet"
+
+t0-down:
+	docker compose -f containers/docker-compose.yml down -v
+
+t0-test: t0-up
+	uv run pytest tests/integration -v -m t0
+	$(MAKE) t0-down
+
+infra-plan:
+	cd infra/terraform/environments/dev && terraform init && terraform plan
+
+infra-apply:
+	cd infra/terraform/environments/dev && terraform apply
+
+configure:
+	cd infra/ansible && ansible-playbook -i inventory/hosts playbooks/slurm.yml
+
+validate:
+	cd infra/chef/inspec && inspec exec cluster_compliance/
+
+clean:
+	find . -type d -name __pycache__ -exec rm -rf {} +
+	find . -type f -name "*.pyc" -delete
+	rm -rf .pytest_cache .mypy_cache .ruff_cache
