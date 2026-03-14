@@ -1,4 +1,5 @@
-# Claude.md — HelixScale: BioNemo HPC Orchestration Showcase
+# Claude.md — HelixScale: BioNeMo-AI HPC Fabric Orchestration Platform
+
 
 ## Project Identity
 

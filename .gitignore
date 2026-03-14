@@ -1,2 +1,4 @@
 .ds_store
 .venv
+.env
+uv.lock

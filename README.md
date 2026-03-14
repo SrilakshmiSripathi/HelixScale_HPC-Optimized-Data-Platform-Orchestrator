@@ -1,4 +1,4 @@
-# HelixScale: BioNeMo HPC Orchestration Platform
+# HelixScale: BioNeMo-AI HPC Fabric Orchestration Platform
 
 > Production-grade HPC platform engineering for GPU-accelerated computational biology workloads — from bare metal to cloud, single node to multi-cluster.
 

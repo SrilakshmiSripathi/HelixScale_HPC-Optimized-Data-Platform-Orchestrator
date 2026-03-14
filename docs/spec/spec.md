@@ -1,4 +1,4 @@
-# spec.md — HelixScale Technical Specification
+# spec.md — HelixScale Technical Specification completed vision
 
 ## 1. System Overview
 
